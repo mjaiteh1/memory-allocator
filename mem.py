@@ -1,6 +1,7 @@
-import operator #https://stackoverflow.com/questions/4010322/sort-a-list-of-class-instances-python
+import operator 
 from random import shuffle
 import sys
+
 class Simulation(object):
     def __init__(self, algorithm, size):
         self.algorithm = algorithm
@@ -8,11 +9,13 @@ class Simulation(object):
         self.failed_alloc = 0
         self.free_list = []
         self.used_list = []
-        self.free_list.append(Block("Memory", size, 0))
+        #initialize free list with block of input size
+        self.free_list.append(Block("Memory", size, 0)) 
         
     def block_split(self, block, name, size):
+        '''Split block in Freelist.'''
         if block.size < size:
-            print("Too Small")
+            print("Block is too small")
         elif block.size == size:
             self.free_list.remove(block)
             self.used_list.append(block)
@@ -23,6 +26,7 @@ class Simulation(object):
             self.used_list.append(used)
             
     def compact_free_list(self):
+        '''If blocks are adjacent in free list compact them together.'''
         self.free_list = sorted(self.free_list, key=operator.attrgetter('offset'))
         keep_list = []
         accum = Block("accum",0,0)
@@ -38,32 +42,38 @@ class Simulation(object):
         self.free_list = keep_list
         
     def find_block(self, name, size):
+        ''' If block is found, split block.'''
         for block in self.free_list:
             if block.size >= size:
                 self.block_split(block,name,size)
                 return 
         print("No Block found to fit {0}".format(name))
         self.failed_alloc += 1
+        
     def find_block_next_fit(self, name, size):
+        ''' Find Next fit - remove block chosen and add to end of list.'''
         for block in self.free_list:
             if block.size >= size:
                 self.block_split(block,name,size)
                 self.free_list.remove(block)
                 self.free_list.append(block)
-                return 
+                return
+        print("Error: There's no block {0} to be freed".format(name))
+        self.failed_alloc += 1
         
     def free_block(self, name):
+        '''Free requested block and compact free list.'''
         for block in self.used_list:
             if block.name == name:
                 self.used_list.remove(block)
                 self.free_list.append(block)
+                self.compact_free_list()
                 return
         print("Error: There's no block {0} to be freed".format(name))
-        
+            
     def first_fit_alloc(self, name, size):
         self.free_list = sorted(self.free_list, key=operator.attrgetter('offset'))
         self.find_block(name,size)
- 
     def best_fit_alloc(self, name, size):
         self.free_list = sorted(self.free_list, key=operator.attrgetter('size'))
         self.find_block(name,size)
@@ -73,11 +83,11 @@ class Simulation(object):
     def random_fit_alloc(self, name, size):
         shuffle(self.free_list)
         self.find_block(name, size)
-
     def next_fit_alloc(self,name,size):
         self.find_block_next_fit(name, size)
         
     def run_algorithm(self, name, size):
+        '''Run different fit algorithm based on user input.'''
         if self.algorithm == "first":
             self.first_fit_alloc(name, size)
         elif self.algorithm == "worst":
@@ -93,6 +103,7 @@ class Simulation(object):
 
             
     def percentage_mem(self):
+        ''' Displaying summary outputs of memory.'''
         size_count_used = 0
         size_count_free = 0
         free_max = 0
@@ -105,10 +116,12 @@ class Simulation(object):
                 free_max = block.size
         print("\nPercentage of Used Memory:", round( ((size_count_used/self.size)*100), 2), "%")
         print("Percentage of Free Memory:", round( ((size_count_free/self.size)*100), 2),"%")
-        print("Percentage of Fragmention:",round( (((size_count_free-free_max)/size_count_free)*100), 2),"%")
+        if len(self.free_list) != 0:
+            print("Percentage of Fragmention:",round( (((size_count_free-free_max)/size_count_free)*100), 2),"%")
         print("Number of Failed Allocations:", self.failed_alloc)
         
     def print_memory(self):
+        '''Printing what's left in freelist and usedlist '''
         self.free_list = sorted(self.free_list, key=operator.attrgetter('offset'))
         self.used_list = sorted(self.used_list, key=operator.attrgetter('offset'))
         print("Printing Free Memory List: \n")
@@ -133,14 +146,18 @@ class Block(object):
         return block.block_meets(self) or self.block_meets(block)
 
 def main():
-    
+    ''' Reading in input files for command line and run algorithm.'''
+    #Reading in file -- Make sure there are no spaces at the end of file
     path = sys.argv[1]
     lines = [line.rstrip('\n') for line in open(path)]
-    lines = lines[:-1]
+    
+
+    #reading in the first line to set up simulation. 
     cols = lines[0].strip().split()
     algorithm = cols[1]
     size = cols[2]
- 
+
+    #initialize Memory Simulation. 
     memory_sim = Simulation(algorithm, size)
  
     for line in lines[1:]:
